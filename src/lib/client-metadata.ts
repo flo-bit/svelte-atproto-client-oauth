@@ -7,7 +7,7 @@ export const metadata = {
 
 	redirect_uris: [url],
 
-	scope: 'atproto',
+	scope: 'atproto transition:generic',
 	grant_types: ['authorization_code', 'refresh_token'],
 	response_types: ['code'],
 	token_endpoint_auth_method: 'none',

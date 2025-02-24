@@ -77,6 +77,4 @@
 			</ul>
 		{/if}
 	{/if}
-
-	<a href="/svelte-atproto-client-oauth/test">test</a>
 </div>
