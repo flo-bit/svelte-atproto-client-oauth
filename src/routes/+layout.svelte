@@ -1,13 +1,13 @@
 <script lang="ts">
 	import '../app.css';
-	
+
 	import { onMount } from 'svelte';
-	import { initOAuthClient } from '$lib/auth.svelte';
-	import LoginModal from '$lib/UI/LoginModal.svelte';
+	import { initClient, LoginModal } from '$lib/oauth';
+
 	let { children } = $props();
 
 	onMount(() => {
-		initOAuthClient();
+		initClient();
 	});
 </script>
 

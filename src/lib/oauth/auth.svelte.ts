@@ -9,11 +9,9 @@ import {
 } from '@atcute/oauth-browser-client';
 import { dev } from '$app/environment';
 import { XRPC } from '@atcute/client';
-import { base } from '$app/paths';
+import { metadata } from './const';
 
-export const URL = 'https://flo-bit.dev';
-
-export const data = $state({
+export const client = $state({
 	agent: null as OAuthUserAgent | null,
 	session: null as Session | null,
 	rpc: null as XRPC | null,
@@ -29,22 +27,23 @@ export const data = $state({
 		followsCount?: number;
 		postsCount?: number;
 	} | null,
-	isInitializing: true
+	isInitializing: true,
+	isLoggedIn: false
 });
 
-export async function initOAuthClient() {
-	data.isInitializing = true;
+export async function initClient() {
+	client.isInitializing = true;
 
 	const clientId = dev
 		? `http://localhost` +
 			`?redirect_uri=${encodeURIComponent('http://127.0.0.1:5179')}` +
-			`&scope=${encodeURIComponent('atproto transition:generic')}`
-		: `${URL}${base}/client-metadata.json`;
+			`&scope=${encodeURIComponent(metadata.scope)}`
+		: metadata.client_id;
 
 	configureOAuth({
 		metadata: {
 			client_id: clientId,
-			redirect_uri: `${dev ? 'http://127.0.0.1:5179' : URL + base}`
+			redirect_uri: `${dev ? 'http://127.0.0.1:5179' : metadata.redirect_uris[0]}`
 		}
 	});
 
@@ -58,7 +57,42 @@ export async function initOAuthClient() {
 		await resumeSession(did);
 	}
 
-	data.isInitializing = false;
+	client.isInitializing = false;
+}
+
+export async function login(handle: string) {
+	if (handle.startsWith('did:')) {
+		if (handle.length > 5) await authorizationFlow(handle);
+		else throw new Error('DID must be at least 6 characters');
+	} else if (handle.includes('.') && handle.length > 3) {
+		const processed = handle.startsWith('@') ? handle.slice(1) : handle;
+		if (processed.length > 3) await authorizationFlow(processed);
+		else throw new Error('Handle must be at least 4 characters');
+	} else if (handle.length > 3) {
+		const processed = (handle.startsWith('@') ? handle.slice(1) : handle) + '.bsky.social';
+		await authorizationFlow(processed);
+	} else {
+		throw new Error('Please provide a valid handle, DID, or PDS URL');
+	}
+}
+
+export async function logout() {
+	const currentAgent = client.agent;
+	if (currentAgent) {
+		const did = currentAgent.session.info.sub;
+
+		localStorage.removeItem('last-login');
+		localStorage.removeItem(`profile-${did}`);
+
+		await currentAgent.signOut();
+		client.session = null;
+		client.agent = null;
+		client.profile = null;
+
+		client.isLoggedIn = false;
+	} else {
+		throw new Error('Not signed in');
+	}
 }
 
 async function finalizeLogin(params: URLSearchParams, did?: string) {
@@ -66,12 +100,14 @@ async function finalizeLogin(params: URLSearchParams, did?: string) {
 		history.replaceState(null, '', location.pathname + location.search);
 
 		const session = await finalizeAuthorization(params);
-		data.session = session;
+		client.session = session;
 
 		setAgentAndXRPC(session);
+		localStorage.setItem('last-login', session.info.sub);
 
 		await loadProfile(session.info.sub);
-		localStorage.setItem('last-login', session.info.sub);
+
+		client.isLoggedIn = true;
 	} catch (error) {
 		console.error('error finalizing login', error);
 		if (did) {
@@ -83,20 +119,22 @@ async function finalizeLogin(params: URLSearchParams, did?: string) {
 async function resumeSession(did: string) {
 	try {
 		const session = await getSession(did as `did:${string}`, { allowStale: true });
-		data.session = session;
+		client.session = session;
 
 		setAgentAndXRPC(session);
 
 		await loadProfile(session.info.sub);
+
+		client.isLoggedIn = true;
 	} catch (error) {
 		console.error('error resuming session', error);
 	}
 }
 
 function setAgentAndXRPC(session: Session) {
-	data.agent = new OAuthUserAgent(session);
+	client.agent = new OAuthUserAgent(session);
 
-	data.rpc = new XRPC({ handler: data.agent });
+	client.rpc = new XRPC({ handler: client.agent });
 }
 
 async function loadProfile(actor: string) {
@@ -104,46 +142,30 @@ async function loadProfile(actor: string) {
 	const profile = localStorage.getItem(`profile-${actor}`);
 	if (profile) {
 		console.log('loading profile from local storage');
-		data.profile = JSON.parse(profile);
+		client.profile = JSON.parse(profile);
 		return;
 	}
 
 	console.log('loading profile from server');
-	const response = await data.rpc?.request({
+	const response = await client.rpc?.request({
 		type: 'get',
 		nsid: 'app.bsky.actor.getProfile',
 		params: { actor }
 	});
 
 	if (response) {
-		data.profile = response.data;
+		client.profile = response.data;
 		localStorage.setItem(`profile-${actor}`, JSON.stringify(response.data));
 	}
 }
 
-export async function trySignIn(value: string) {
-	if (value.startsWith('did:')) {
-		if (value.length > 5) await signIn(value);
-		else throw new Error('DID must be at least 6 characters');
-	} else if (value.includes('.') && value.length > 3) {
-		const handle = value.startsWith('@') ? value.slice(1) : value;
-		if (handle.length > 3) await signIn(handle);
-		else throw new Error('Handle must be at least 4 characters');
-	} else if (value.length > 3) {
-		const handle = (value.startsWith('@') ? value.slice(1) : value) + '.bsky.social';
-		await signIn(handle);
-	} else {
-		throw new Error('Please provide a valid handle, DID, or PDS URL');
-	}
-}
-
-export async function signIn(input: string) {
-	const { identity, metadata } = await resolveFromIdentity(input);
+async function authorizationFlow(input: string) {
+	const { identity, metadata: meta } = await resolveFromIdentity(input);
 
 	const authUrl = await createAuthorizationUrl({
-		metadata: metadata,
+		metadata: meta,
 		identity: identity,
-		scope: 'atproto transition:generic'
+		scope: metadata.scope
 	});
 
 	await new Promise((resolve) => setTimeout(resolve, 200));
@@ -157,21 +179,4 @@ export async function signIn(input: string) {
 
 		window.addEventListener('pageshow', listener, { once: true });
 	});
-}
-
-export async function signOut() {
-	const currentAgent = data.agent;
-	if (currentAgent) {
-		const did = currentAgent.session.info.sub;
-
-		localStorage.removeItem('last-login');
-		localStorage.removeItem(`profile-${did}`);
-
-		await currentAgent.signOut();
-		data.session = null;
-		data.agent = null;
-		data.profile = null;
-	} else {
-		throw new Error('Not signed in');
-	}
 }

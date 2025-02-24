@@ -1,10 +1,11 @@
 import { base } from '$app/paths';
-import { URL } from './auth.svelte';
+
+export const SITE_URL = 'https://flo-bit.dev';
 
 export const metadata = {
-	client_id: `${URL}${base}/client-metadata.json`,
+	client_id: `${SITE_URL}${base}/client-metadata.json`,
 
-	redirect_uris: [URL + base],
+	redirect_uris: [SITE_URL + base],
 
 	scope: 'atproto transition:generic',
 	grant_types: ['authorization_code', 'refresh_token'],

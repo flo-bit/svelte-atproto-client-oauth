@@ -1,7 +1,13 @@
+<script lang="ts" module>
+	export const loginModalState = $state({
+		visible: false,
+		show: () => (loginModalState.visible = true),
+		hide: () => (loginModalState.visible = false)
+	});
+</script>
+
 <script lang="ts">
-	import { showLoginModal } from '$lib/state.svelte';
-	import { trySignIn } from '$lib/auth.svelte';
-	import Input from './Input.svelte';
+	import { login } from '../auth.svelte';
 	import Button from './Button.svelte';
 	import { tick } from 'svelte';
 
@@ -17,7 +23,7 @@
 		loading = true;
 
 		try {
-			await trySignIn(value);
+			await login(value);
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		} finally {
@@ -28,7 +34,7 @@
 	let input: HTMLInputElement | undefined = $state();
 
 	$effect(() => {
-		if (!showLoginModal.visible) {
+		if (!loginModalState.visible) {
 			error = null;
 			value = '';
 			loading = false;
@@ -40,7 +46,7 @@
 	});
 </script>
 
-{#if showLoginModal.visible}
+{#if loginModalState.visible}
 	<div
 		class="fixed inset-0 z-[100] w-screen overflow-y-auto"
 		aria-labelledby="modal-title"
@@ -49,7 +55,7 @@
 	>
 		<div
 			class="fixed inset-0 bg-neutral-50/90 backdrop-blur-sm transition-opacity dark:bg-neutral-950/90"
-			onclick={() => (showLoginModal.visible = false)}
+			onclick={() => (loginModalState.visible = false)}
 			aria-hidden="true"
 		></div>
 
@@ -63,12 +69,12 @@
 					<h3 class="font-semibold text-neutral-900 dark:text-neutral-100" id="modal-title">
 						Login With Bluesky
 					</h3>
-					<form onsubmit={onSubmit} class="mt-2 flex w-full flex-col gap-2">
+					<form onsubmit={onSubmit} class="mt-4 flex w-full flex-col gap-2">
 						<div class="w-full">
 							<label
 								for="bluesky-handle"
 								class="block text-sm/6 font-medium text-neutral-900 dark:text-neutral-100"
-								>Handle</label
+								>Your handle</label
 							>
 							<div class="mt-2">
 								<input
@@ -78,7 +84,7 @@
 									id="bluesky-handle"
 									placeholder="yourname.bsky.social"
 									bind:value
-									class="block w-full rounded-full border-0 py-1.5 text-neutral-900 caret-rose-500 shadow-sm ring-1 ring-neutral-300 ring-inset placeholder:text-neutral-400 focus:ring-2 focus:ring-rose-600 focus:ring-inset sm:text-sm/6 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-700 dark:placeholder:text-neutral-600"
+									class="block w-full rounded-full border-0 py-1.5 text-neutral-900 caret-rose-500 shadow-sm ring-1 ring-neutral-300 ring-inset placeholder:text-neutral-500 focus:ring-2 focus:ring-rose-600 focus:ring-inset sm:text-sm/6 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-700 dark:placeholder:text-neutral-600"
 								/>
 							</div>
 						</div>
@@ -91,6 +97,18 @@
 							<Button type="submit" disabled={loading} class="w-full"
 								>{loading ? 'Loading...' : 'Login'}</Button
 							>
+						</div>
+
+						<div class="mt-4 border-t border-neutral-200 pt-4 text-sm leading-7 text-neutral-800">
+							Don't have an account?
+							<br />
+							<a
+								href="https://bsky.app"
+								target="_blank"
+								class="font-medium text-rose-600 hover:text-rose-500"
+							>
+								Create one on bluesky
+							</a>, then sign in here.
 						</div>
 					</form>
 				</div>
