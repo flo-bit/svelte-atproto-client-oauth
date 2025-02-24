@@ -1,4 +1,3 @@
-import type { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 import {
 	configureOAuth,
 	createAuthorizationUrl,
@@ -17,7 +16,6 @@ export const URL = 'https://flo-bit.dev';
 export const data = $state({
 	agent: null as OAuthUserAgent | null,
 	session: null as Session | null,
-	client: null as BrowserOAuthClient | null,
 	rpc: null as XRPC | null,
 	profile: null as {
 		handle: string;
@@ -41,12 +39,12 @@ export async function initOAuthClient() {
 		? `http://localhost` +
 			`?redirect_uri=${encodeURIComponent('http://127.0.0.1:5179')}` +
 			`&scope=${encodeURIComponent('atproto transition:generic')}`
-		: `${window.location.origin}${base}/client-metadata.json`;
+		: `${URL}${base}/client-metadata.json`;
 
 	configureOAuth({
 		metadata: {
 			client_id: clientId,
-			redirect_uri: `${dev ? 'http://127.0.0.1:5179' : window.location.origin}`
+			redirect_uri: `${dev ? 'http://127.0.0.1:5179' : URL + base}`
 		}
 	});
 
