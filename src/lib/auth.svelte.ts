@@ -1,5 +1,6 @@
 import type { BrowserOAuthClient, OAuthSession } from '@atproto/oauth-client-browser';
 import type { Agent } from '@atproto/api';
+import { metadata } from './client-metadata';
 
 const { MODE } = import.meta.env;
 
@@ -22,17 +23,13 @@ export async function initOAuthClient() {
 	const { BrowserOAuthClient } = await import('@atproto/oauth-client-browser');
 	const { Agent } = await import('@atproto/api');
 
-	const clientId = `http://localhost?${new URLSearchParams({
-		scope: 'atproto transition:generic',
-		redirect_uri: Object.assign(new URL(window.location.origin), {
-			hostname: '[::1]'
-		}).href
-	})}`;
+	const clientId = `${window.location.origin}/svelte-atproto-client-oauth/client-metadata.json`;
 
-	oauthClient = await BrowserOAuthClient.load({
-		clientId,
+	console.log(clientId);
+
+	oauthClient = new BrowserOAuthClient({
+		clientMetadata: metadata,
 		handleResolver: HANDLE_RESOLVER_URL,
-		plcDirectoryUrl: PLC_DIRECTORY_URL,
 		allowHttp: MODE === 'development' || MODE === 'test'
 	});
 
@@ -40,6 +37,7 @@ export async function initOAuthClient() {
 
 	try {
 		const initResult = await oauthClient.init();
+		console.log(initResult);
 		if (initResult) {
 			data.session = initResult.session;
 			data.agent = new Agent(initResult.session);
