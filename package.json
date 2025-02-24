@@ -38,5 +38,6 @@
 	},
 	"dependencies": {
 		"@atcute/oauth-browser-client": "^1.0.13"
-	}
+	},
+	"license": "MIT"
 }

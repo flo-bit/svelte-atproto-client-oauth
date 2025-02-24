@@ -1,9 +1,9 @@
 # svelte atproto client oauth demo
 
 this is a scaffold for how to get client side oauth working with sveltekit and atproto 
-using the `@atcute/oauth-browser-client` library.
+using the [`@atcute/oauth-browser-client`](https://github.com/mary-ext/atcute) library.
 
-perfect for static builds e.g. using github pages.
+useful when you want people to login to your static sveltekit site.
 
 ## how to install
 
