@@ -1,17 +1,4 @@
 import type { BrowserOAuthClient } from '@atproto/oauth-client-browser';
-
-export const HANDLE_RESOLVER_URL = 'https://bsky.social';
-export const PLC_DIRECTORY_URL = undefined;
-
-export const BASE_PATH = '/svelte-atproto-client-oauth';
-
-export const data = $state({
-	agent: null as OAuthUserAgent | null,
-	session: null as Session | null,
-	client: null as BrowserOAuthClient | null,
-	isInitializing: true
-});
-
 import {
 	configureOAuth,
 	createAuthorizationUrl,
@@ -21,50 +8,119 @@ import {
 	OAuthUserAgent,
 	getSession
 } from '@atcute/oauth-browser-client';
+import { dev } from '$app/environment';
+import { XRPC } from '@atcute/client';
+import { base } from '$app/paths';
+
+export const URL = 'https://flo-bit.dev';
+
+export const data = $state({
+	agent: null as OAuthUserAgent | null,
+	session: null as Session | null,
+	client: null as BrowserOAuthClient | null,
+	rpc: null as XRPC | null,
+	profile: null as {
+		handle: string;
+		did: string;
+		createdAt: string;
+		description?: string;
+		displayName?: string;
+		banner?: string;
+		avatar?: string;
+		followersCount?: number;
+		followsCount?: number;
+		postsCount?: number;
+	} | null,
+	isInitializing: true
+});
 
 export async function initOAuthClient() {
 	data.isInitializing = true;
 
-	const clientId = `${window.location.origin}/svelte-atproto-client-oauth/client-metadata.json`;
+	const clientId = dev
+		? `http://localhost` +
+			`?redirect_uri=${encodeURIComponent('http://127.0.0.1:5179')}` +
+			`&scope=${encodeURIComponent('atproto transition:generic')}`
+		: `${window.location.origin}${base}/client-metadata.json`;
 
 	configureOAuth({
 		metadata: {
 			client_id: clientId,
-			redirect_uri: `${window.location.origin}/svelte-atproto-client-oauth`
+			redirect_uri: `${dev ? 'http://127.0.0.1:5179' : window.location.origin}`
 		}
 	});
 
 	const params = new URLSearchParams(location.hash.slice(1));
 
-	const did = localStorage.getItem('last-login');
+	const did = localStorage.getItem('last-login') ?? undefined;
 
 	if (params.size > 0) {
-		history.replaceState(null, '', location.pathname + location.search);
-
-		// you'd be given a session object that you can then pass to OAuthUserAgent!
-		const session = await finalizeAuthorization(params);
-
-		data.session = session;
-		console.log(session);
-
-		data.agent = new OAuthUserAgent(session);
-
-		// save did to local storage
-		localStorage.setItem('last-login', session.info.sub);
+		await finalizeLogin(params, did);
 	} else if (did) {
-		try {
-			const session = await getSession(did as `did:${string}`, { allowStale: true });
-			data.session = session;
-
-			data.agent = new OAuthUserAgent(session);
-
-			console.log('resuming session', session);
-		} catch (error) {
-			console.error('error resuming session', error);
-		}
+		await resumeSession(did);
 	}
 
 	data.isInitializing = false;
+}
+
+async function finalizeLogin(params: URLSearchParams, did?: string) {
+	try {
+		history.replaceState(null, '', location.pathname + location.search);
+
+		const session = await finalizeAuthorization(params);
+		data.session = session;
+
+		setAgentAndXRPC(session);
+
+		await loadProfile(session.info.sub);
+		localStorage.setItem('last-login', session.info.sub);
+	} catch (error) {
+		console.error('error finalizing login', error);
+		if (did) {
+			await resumeSession(did);
+		}
+	}
+}
+
+async function resumeSession(did: string) {
+	try {
+		const session = await getSession(did as `did:${string}`, { allowStale: true });
+		data.session = session;
+
+		setAgentAndXRPC(session);
+
+		await loadProfile(session.info.sub);
+	} catch (error) {
+		console.error('error resuming session', error);
+	}
+}
+
+function setAgentAndXRPC(session: Session) {
+	data.agent = new OAuthUserAgent(session);
+
+	data.rpc = new XRPC({ handler: data.agent });
+}
+
+async function loadProfile(actor: string) {
+	// check if profile is already loaded in local storage
+	const profile = localStorage.getItem(`profile-${actor}`);
+	if (profile) {
+		console.log('loading profile from local storage');
+		data.profile = JSON.parse(profile);
+		return;
+	}
+
+	console.log('loading profile from server');
+	const response = await data.rpc?.request({
+		type: 'get',
+		nsid: 'app.bsky.actor.getProfile',
+		params: { actor }
+	});
+
+	if (response) {
+		data.profile = response.data;
+		localStorage.setItem(`profile-${actor}`, JSON.stringify(response.data));
+	}
 }
 
 export async function trySignIn(value: string) {
@@ -92,10 +148,8 @@ export async function signIn(input: string) {
 		scope: 'atproto transition:generic'
 	});
 
-	// recommended to wait for the browser to persist local storage before proceeding
 	await new Promise((resolve) => setTimeout(resolve, 200));
 
-	// redirect the user to sign in and authorize the app
 	window.location.assign(authUrl);
 
 	await new Promise((_resolve, reject) => {
@@ -110,10 +164,16 @@ export async function signIn(input: string) {
 export async function signOut() {
 	const currentAgent = data.agent;
 	if (currentAgent) {
+		const did = currentAgent.session.info.sub;
+
+		localStorage.removeItem('last-login');
+		localStorage.removeItem(`profile-${did}`);
+
 		await currentAgent.signOut();
 		data.session = null;
 		data.agent = null;
-
-		localStorage.removeItem('last-login');
+		data.profile = null;
+	} else {
+		throw new Error('Not signed in');
 	}
 }

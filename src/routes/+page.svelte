@@ -1,53 +1,52 @@
-<script>
+<script lang="ts">
 	import { data, signOut } from '$lib/auth.svelte';
 	import Button from '$lib/UI/Button.svelte';
 	import { showLoginModal } from '$lib/state.svelte';
-	import { onMount } from 'svelte';
 
-	onMount(() => {
-		console.log(data.agent);
-	});
-
-	let likes = $state([]);
+	let likes: {
+		post: {
+			record: {
+				text: string;
+			};
+		};
+	}[] = $state([]);
 
 	async function getLikes() {
-		if (data.agent?.session.info.sub) {
-			const response = await data.agent.handle(
-				'/xrpc/app.bsky.feed.getActorLikes?actor=' + data.agent.session.info.sub + '&limit=10'
-			);
+		if (!data.profile?.did) return;
 
-			const json = await response.json();
-			console.log(json);
-			likes = json.feed;
-		}
+		const response = await data.rpc?.request({
+			type: 'get',
+			nsid: 'app.bsky.feed.getActorLikes',
+			params: {
+				actor: data.profile.did,
+				limit: 10
+			}
+		});
+
+		likes = response?.data.feed;
 	}
 
-	import { XRPC } from '@atcute/client';
-
 	async function putRecord() {
-		if (data.agent?.session.info.sub) {
-			try {
+		if (!data.agent?.session.info.sub) return;
 
-				const rpc = new XRPC({ handler: data.agent });
-
-				const hello = await rpc.call('com.atproto.repo.createRecord', {
-					data: {
-						collection: 'com.atproto.test',
-						repo: data.agent.session.info.sub,
-						record: {
-							text: 'hello there'
-						}
+		try {
+			const hello = await data.rpc?.call('com.atproto.repo.createRecord', {
+				data: {
+					collection: 'com.atproto.test',
+					repo: data.agent.session.info.sub,
+					record: {
+						text: 'hello there'
 					}
-				});
-				console.log(hello);
-			} catch (error) {
-				console.log('hello', error);
-			}
+				}
+			});
+			console.log(hello);
+		} catch (error) {
+			console.log('hello', error);
 		}
 	}
 </script>
 
-<div class="mx-auto my-16 max-w-3xl px-2">
+<div class="mx-auto my-8 max-w-3xl px-2 md:my-32">
 	<h1 class="text-3xl font-bold">svelte atproto client oauth demo</h1>
 
 	{#if data.isInitializing}
@@ -60,7 +59,16 @@
 	{/if}
 
 	{#if data.agent}
-		<div class="mt-8 text-sm">signed in with {data.agent.session.info.sub}</div>
+		<div class="mt-8 text-sm">signed in as</div>
+
+		<div class="mt-2 flex gap-1 font-semibold">
+			<img
+				src={data.profile?.avatar}
+				class="h-6 w-6 rounded-full"
+				alt="avatar of {data.profile?.handle}"
+			/>
+			<span>{data.profile?.handle}</span>
+		</div>
 
 		<Button class="mt-4" onclick={() => signOut()}>Sign Out</Button>
 
@@ -77,6 +85,4 @@
 			</ul>
 		{/if}
 	{/if}
-
-	<a href="/svelte-atproto-client-oauth/test">test</a>
 </div>

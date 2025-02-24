@@ -1,11 +1,10 @@
-const url = 'https://flo-bit.dev/svelte-atproto-client-oauth';
+import { base } from '$app/paths';
+import { URL } from './auth.svelte';
 
 export const metadata = {
-	client_id: `${url}/client-metadata.json`,
+	client_id: `${URL}${base}/client-metadata.json`,
 
-	client_name: 'Svelte Atproto Client OAuth',
-
-	redirect_uris: [url],
+	redirect_uris: [URL + base],
 
 	scope: 'atproto transition:generic',
 	grant_types: ['authorization_code', 'refresh_token'],
