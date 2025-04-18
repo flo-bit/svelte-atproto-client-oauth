@@ -15,8 +15,21 @@ useful when you want people to login to your static sveltekit site.
 4. go to `http://127.0.0.1:5179`
 5. for deployment change the `SITE_URL` variable in `src/lib/oauth/const.ts` 
 (e.g. for github pages: `https://your-username.github.io`) and set your base in `svelte.config.js` 
-(e.g. for github pages: `base: '/your-repo-name/'`)
+(e.g. for github pages: `base: '/your-repo-name/'`) while keeping it as `''` in development.
 
+```
+const config = {
+	// ...
+
+	kit: {
+		// ...
+
+		paths: {
+			base: process.env.NODE_ENV === 'development' ? '' : '/svelte-atproto-client-oauth'
+		}
+	}
+};
+```
 
 ### or manually install in your own project
 
@@ -55,7 +68,21 @@ npm install @atcute/oauth-browser-client @atcute/client
 
 6. for deployment change the `SITE_URL` variable in `src/lib/oauth/const.ts` 
 (e.g. for github pages: `https://your-username.github.io`) and set your base in `svelte.config.js` 
-(e.g. for github pages: `base: '/your-repo-name/'`)
+(e.g. for github pages: `base: '/your-repo-name/'`) while keeping it as `''` in development.
+
+```
+const config = {
+	// ...
+
+	kit: {
+		// ...
+
+		paths: {
+			base: process.env.NODE_ENV === 'development' ? '' : '/svelte-atproto-client-oauth'
+		}
+	}
+};
+```
 
 
 ## how to use
