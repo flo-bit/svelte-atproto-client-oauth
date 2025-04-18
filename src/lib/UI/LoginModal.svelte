@@ -7,7 +7,7 @@
 </script>
 
 <script lang="ts">
-	import { login } from '../auth.svelte';
+	import { login } from '$lib/oauth/auth.svelte';
 	import Button from './Button.svelte';
 	import { tick } from 'svelte';
 

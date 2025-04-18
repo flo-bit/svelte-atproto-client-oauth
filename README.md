@@ -20,9 +20,9 @@ useful when you want people to login to your static sveltekit site.
 
 ### or manually install in your own project
 
-- copy the `src/lib/oauth` folder into your own project
-- also copy the `src/routes/client-metadata.json` folder into your project
-- add the following to your `src/routes/+layout.svelte`
+1. copy the `src/lib/oauth` folder into your own project
+2. also copy the `src/routes/client-metadata.json` folder into your project
+3. add the following to your `src/routes/+layout.svelte`
 
 ```svelte
 <script>
@@ -35,6 +35,28 @@ useful when you want people to login to your static sveltekit site.
 
 {@render children()}
 ```
+
+4. add server and port to your `vite.config.ts`
+
+```js
+export default defineConfig({
+	server: {
+		host: '127.0.0.1',
+		port: 5179
+	}
+});
+```
+
+5. install the dependencies
+
+```bash
+npm install @atcute/oauth-browser-client @atcute/client
+```
+
+6. for deployment change the `SITE_URL` variable in `src/lib/oauth/const.ts` 
+(e.g. for github pages: `https://your-username.github.io`) and set your base in `svelte.config.js` 
+(e.g. for github pages: `base: '/your-repo-name/'`)
+
 
 ## how to use
 
@@ -52,7 +74,8 @@ client.isLoggedIn; // check if the user is logged in
 client.logout(); // logout the user
 ```
 
-LoginModal is a component that renders a login modal, add it for a quick login flow.
+LoginModal is a component that renders a login modal, add it for a quick login flow. 
+(copy the `src/lib/UI` folder into your projects `src/lib` folder)
 
 ```svelte
 <script>
